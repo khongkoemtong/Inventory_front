@@ -4,9 +4,9 @@ import {
   LayoutGrid, ShoppingBag, Search, ChevronRight, ChevronLeft,
   ArrowRight, Star, ShieldCheck, Truck, RotateCcw, Zap, X, User, LogOut,
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom'; // បន្ថែម useNavigate សម្រាប់ប្តូរទំព័រ
+import { Link, useNavigate } from 'react-router-dom';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = 'http://127.0.0.1:8000/api'; // ប្តូរទៅ IP ឱ្យដូច Backend
 
 const Home = () => {
   const navigate = useNavigate();
@@ -14,9 +14,22 @@ const Home = () => {
   // UI States
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  // --- ដំណោះស្រាយសំខាន់៖ ចាប់តម្លៃពី LocalStorage ភ្លាមៗតាំងពីការប្រកាស State ---
+  // --- ដំណោះស្រាយសំខាន់៖ បង្កើត Function ដើម្បីទាញយក ID ពីក្នុង Object 'user' ---
+  const getStoredUserId = () => {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      try {
+        const user = JSON.parse(userData);
+        return user.id; // ទាញយក ID ពី Object {id: 8, username: '...', ...}
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  };
+
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('token'));
-  const [userId, setUserId] = useState(localStorage.getItem('userId'));
+  const [userId, setUserId] = useState(getStoredUserId()); // កំណត់ ID តាំងពីចាប់ផ្តើម
 
   // Data States
   const [categories, setCategories] = useState([]);
@@ -25,12 +38,11 @@ const Home = () => {
 
   // Check Auth & Fetch Data
   useEffect(() => {
-    // បញ្ជាក់តម្លៃម្តងទៀតក្នុង useEffect ដើម្បីឱ្យប្រាកដថា State ស្របគ្នាជាមួយ Storage
     const token = localStorage.getItem('token');
-    const storedId = localStorage.getItem('userId');
-
+    
+    // បច្ចុប្បន្នភាព State ពេល Page លោតឡើង
     setIsLoggedIn(!!token);
-    setUserId(storedId);
+    setUserId(getStoredUserId());
 
     const fetchHomeData = async () => {
       try {
@@ -51,20 +63,20 @@ const Home = () => {
     fetchHomeData();
   }, []);
 
-  // Logout Handler - កែសម្រួលឱ្យលុប ID ផងដែរ
+  // Logout Handler - លុបឱ្យស្អាតទាំង Token និង User Object
   const handleLogout = () => {
     localStorage.removeItem('token'); 
-    localStorage.removeItem('userId'); // លុប ID ចេញដើម្បីសុវត្ថិភាព
+    localStorage.removeItem('user'); // លុប Object User ចេញ
     setIsLoggedIn(false);
     setUserId(null);
-    navigate('/'); // បញ្ជូនមកទំព័រដើមវិញ
-    window.location.reload(); // Refresh ដើម្បីជម្រះ State ផ្សេងៗ
+    navigate('/'); 
+    window.location.reload(); 
   };
 
   return (
     <div className="min-h-screen bg-white font-sans text-gray-900 selection:bg-emerald-100 selection:text-emerald-900">
 
-      {/* --- CART SIDEBAR OVERLAY --- */}
+      {/* --- CART SIDEBAR --- */}
       <div className={`fixed inset-0 z-[100] transition-visibility duration-300 ${isCartOpen ? "visible" : "invisible"}`}>
         <div className={`absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300 ${isCartOpen ? "opacity-100" : "opacity-0"}`} onClick={() => setIsCartOpen(false)} />
         <div className={`absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl transition-transform duration-300 transform ${isCartOpen ? "translate-x-0" : "translate-x-full"} p-8 flex flex-col`}>
@@ -80,7 +92,7 @@ const Home = () => {
         </div>
       </div>
 
-      {/* --- SECTION 1: NAVBAR --- */}
+      {/* --- NAVBAR --- */}
       <div className="fixed top-6 inset-x-0 z-50 flex justify-center px-6">
         <nav className="w-full max-w-6xl bg-white/70 backdrop-blur-xl border border-white/20 shadow-2xl shadow-emerald-900/10 rounded-2xl px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
@@ -103,11 +115,11 @@ const Home = () => {
               <span className="absolute -top-1 -right-1 bg-emerald-600 text-[8px] text-white w-3.5 h-3.5 rounded-full flex items-center justify-center font-bold">0</span>
             </div>
 
-            {/* --- AUTH LOGIC START --- */}
+            {/* --- AUTH LOGIC --- */}
             {isLoggedIn ? (
               <div className="flex items-center gap-2">
-                {/* បញ្ជូនទៅកាន់ទំព័រ Profile ជាមួយ ID ត្រឹមត្រូវ */}
-                  <Link to={`/profile/${userId || localStorage.getItem('userId')}`}>
+                {/* ប្រើ userId ដែលបានទាញមកពី getStoredUserId() */}
+                <Link to={`/profile/${userId}`}>
                   <button className="bg-emerald-100 text-emerald-900 px-4 py-2 rounded-xl text-xs font-bold hover:bg-emerald-200 transition-all flex items-center gap-2">
                     <User size={14} /> PROFILE
                   </button>
@@ -132,7 +144,7 @@ const Home = () => {
         </nav>
       </div>
 
-      {/* --- SECTION 2: HERO --- */}
+      {/* --- HERO SECTION --- */}
       <section className="relative bg-emerald-950 pt-48 pb-24 overflow-hidden min-h-[85vh] flex items-center">
         <div className="container mx-auto px-6 grid lg:grid-cols-2 gap-16 items-center relative z-10">
           <div className="text-center ps-9 lg:text-left">
@@ -158,8 +170,6 @@ const Home = () => {
           </div>
         </div>
       </section>
-
-      {/* --- បន្តផ្នែកផ្សេងៗទៀតដូចកូដដើមរបស់បង ... --- */}
     </div>
   );
 };

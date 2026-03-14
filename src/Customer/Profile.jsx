@@ -87,14 +87,25 @@ const handleSave = async () => {
 
     const result = await res.json();
 
-    if (res.ok) {
-      // Logic to update the UI
-      setUser(result.message || result.user || user); 
-      setIsEditing(false);
-      setPreviewUrl(null);
-      setImageFile(null);
-      alert("Profile updated successfully!");
-    } else {
+   if (res.ok) {
+  // បង្កើត Function សម្រាប់ទាញទិន្នន័យឡើងវិញ (អ្នកអាច Copy ពី useEffect មក)
+  const fetchUpdatedUser = async () => {
+    const token = localStorage.getItem("token");
+    const response = await fetch(`http://127.0.0.1:8000/api/read/${id}`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" }
+    });
+    const data = await response.json();
+    if (data && data.message) {
+      setUser(data.message); // កំណត់ទិន្នន័យថ្មីដែលបានមកពី Database
+    }
+  };
+
+  await fetchUpdatedUser(); 
+  setIsEditing(false);
+  setPreviewUrl(null);
+  setImageFile(null);
+
+}else {
       console.error("Server Error:", result);
       alert(`Update failed: ${result.message || "Check your permissions"}`);
     }
