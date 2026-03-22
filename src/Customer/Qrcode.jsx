@@ -5,12 +5,13 @@ function Qrcode() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const IP = "192.168.110.13"; 
+  // ប្រើ IP ដូចគ្នាទៅនឹង InventoryPage
+  const BASE_URL = "http://192.168.0.152:8000";
 
   useEffect(() => {
-    fetch(`http://${IP}:8000/api/user-inventory/1`)
+    fetch(`${BASE_URL}/api/user-inventory/1`)
       .then(res => {
-        if (!res.ok) throw new Error('Network response was not ok');
+        if (!res.ok) throw new Error("Server response error");
         return res.json();
       })
       .then(result => {
@@ -18,7 +19,6 @@ function Qrcode() {
         setLoading(false);
       })
       .catch(err => {
-        console.error("Fetch Error:", err);
         setError(err.message);
         setLoading(false);
       });

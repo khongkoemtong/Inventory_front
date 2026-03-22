@@ -3,20 +3,31 @@ import axios from "axios";
 import Swal from "sweetalert2";
 
 const ProductOffcanvas = ({ product, onClose, onSubmit }) => {
+  const API_BASE_URL = "http://127.0.0.1:8000";
+  
   const [show, setShow] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({ ...product });
-  const [previewImage, setPreviewImage] = useState(product.image_url);
+  
+  // Setup initial image preview
+  const initialImage = product.image_url 
+    ? (product.image_url.startsWith('http') ? product.image_url : `${API_BASE_URL}${product.image_url}`)
+    : 'https://via.placeholder.com/150';
+
+  const [previewImage, setPreviewImage] = useState(initialImage);
   const [categories, setCategories] = useState([]); 
 
   useEffect(() => {
     setTimeout(() => setShow(true), 10);
     
-    // ទាញបញ្ជី Category មកដាក់ក្នុង Dropdown
     const fetchCategories = async () => {
       try {
-        const res = await axios.get("http://127.0.0.1:8000/api/categories/read");
-        const cats = res.data || res.data || [];
-        setCategories(cats);
+        const token = localStorage.getItem('token');
+        const res = await axios.get(`${API_BASE_URL}/api/categories/read`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const cats = res.data.data || res.data.message || [];
+        setCategories(Array.isArray(cats) ? cats : []);
       } catch (err) {
         console.error("Error fetching categories:", err);
       }
@@ -29,125 +40,94 @@ const ProductOffcanvas = ({ product, onClose, onSubmit }) => {
     setTimeout(onClose, 300);
   };
 
+  // --- FIX: Added the missing handleChange function ---
   const handleChange = (e) => {
     const { name, type, value, files } = e.target;
     if (type === "file" && files[0]) {
+      // Save file object for upload
       setFormData({ ...formData, [name]: files[0] });
+      // Create preview URL
       setPreviewImage(URL.createObjectURL(files[0]));
     } else {
       setFormData({ ...formData, [name]: value });
     }
   };
 
-  // មុខងារកែប្រែ (Update)
- const handleUpdate = async () => {
-  try {
-    const token = localStorage.getItem('token');
-    const data = new FormData();
+  const handleUpdate = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
 
-    // បោះទិន្នន័យចូល FormData
-    for (const key in formData) {
-      if (formData[key] !== null && formData[key] !== undefined) {
-        // ឆែកមើលបើជា Object (ដូចជា category relation) គឺមិនបាច់យកមកទេ 
-        // យកតែ values ធម្មតា និង File (រូបភាព)
-        if (!(typeof formData[key] === 'object' && !(formData[key] instanceof File))) {
-          data.append(key, formData[key]);
-        }
+    try {
+      const token = localStorage.getItem('token');
+      const data = new FormData();
+
+      // Append fields
+      data.append('name', formData.name);
+      data.append('price', formData.price);
+      data.append('stock_qty', formData.stock_qty);
+      data.append('category_id', formData.category_id);
+      if (formData.supplier_id) data.append('supplier_id', formData.supplier_id);
+      if (formData.description) data.append('description', formData.description || "");
+
+      // Only append image if it's a new file
+      if (formData.image_url instanceof File) {
+        data.append('image_url', formData.image_url);
       }
-    }
 
-    // បញ្ជាក់៖ បើ Backend ប្រើ Route::post បងមិនបាច់ថែម _method: PUT ទេ។ 
-    // ប៉ុន្តែបងត្រូវប្រាកដថាផ្ញើ Token ទៅជាមួយ។
-
-    const response = await axios.post(
-      `http://127.0.0.1:8000/api/product/update/${product.id}`,
-      data,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-          "Authorization": `Bearer ${token}`,
-          "Accept": "application/json"
+      // We use POST because your api.php uses Route::post
+      const response = await axios.post(
+        `${API_BASE_URL}/api/product/update/${product.id}`,
+        data,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            "Authorization": `Bearer ${token}`,
+            "Accept": "application/json"
+          }
         }
-      }
-    );
+      );
 
-    if (response.status === 200 || response.status === 201) {
-      await Swal.fire({
-        icon: "success",
-        title: "បានកែប្រែជោគជ័យ",
-        timer: 1500,
-        showConfirmButton: false
-      });
-      if (typeof onSubmit === 'function') onSubmit();
-      closeCanvas();
+      if (response.status === 200 || response.data.status === 'success') {
+        await Swal.fire({
+          icon: "success",
+          title: "បានកែប្រែជោគជ័យ",
+          timer: 1500,
+          showConfirmButton: false
+        });
+        if (onSubmit) onSubmit();
+        closeCanvas();
+      }
+    } catch (error) {
+      console.error("Update Error:", error.response?.data);
+      const errorMsg = error.response?.data?.message || "ការកែប្រែបរាជ័យ";
+      Swal.fire({ icon: "error", title: errorMsg });
+    } finally {
+      setIsSubmitting(false);
     }
-  } catch (error) {
-    console.error("Update Error:", error.response?.data);
-    // បង្ហាញ Error message ពី Backend មកលើ Screen តែម្តងដើម្បីស្រួលដឹង
-    const errorMsg = error.response?.data?.message || "ការកែប្រែបរាជ័យ";
-    Swal.fire({ icon: "error", title: errorMsg });
-  }
-};
+  };
 
   const handleDelete = async () => {
     const result = await Swal.fire({
       title: "តើអ្នកប្រាកដទេ?",
-      text: `អ្នកនឹងលុបផលិតផល "${product.name}" ចេញពីប្រព័ន្ធ!`,
+      text: `អ្នកនឹងលុបផលិតផល "${product.name}"!`,
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
       confirmButtonText: "យល់ព្រមលុប",
       cancelButtonText: "បោះបង់",
+      confirmButtonColor: '#d33',
     });
 
     if (result.isConfirmed) {
       try {
-        // ១. ទាញ Token ពី LocalStorage (ដូចការ Update ដែរ)
         const token = localStorage.getItem('token');
-
-        // ២. បញ្ជូន Request ទៅកាន់ API ជាមួយ Header Authorization
-        const response = await axios.delete(
-          `http://127.0.0.1:8000/api/product/delete/${product.id}`, 
-          {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Accept': 'application/json'
-            }
-          }
-        );
-
-        // ឆែកមើលបើលុបជោគជ័យ (Status 200 ឬ 204)
-        if (response.status === 200 || response.status === 204) {
-          await Swal.fire({
-            icon: "success",
-            title: "លុបបានជោគជ័យ",
-            timer: 1500,
-            showConfirmButton: false
-          });
-
-          // ហៅ function onSubmit ដើម្បី refresh បញ្ជីទំនិញនៅខាងក្រៅ
-          if (typeof onSubmit === 'function') onSubmit(); 
-          closeCanvas();
-        }
-      } catch (error) {
-        console.error("Delete Error:", error.response?.data);
-        
-        // បង្ហាញ Error Message ឱ្យចំបញ្ហា
-        let errorTitle = "ការលុបបរាជ័យ";
-        let errorText = error.response?.data?.message || "មានបញ្ហាបច្ចេកទេស!";
-
-        if (error.response?.status === 401) {
-          errorText = "អ្នកមិនមានសិទ្ធិលុបទេ ឬ Token ហួសកំណត់!";
-        } else if (error.response?.status === 404) {
-          errorText = "រកមិនឃើញទិន្នន័យផលិតផលនេះក្នុងប្រព័ន្ធ!";
-        }
-
-        Swal.fire({
-          icon: "error",
-          title: errorTitle,
-          text: errorText,
+        await axios.delete(`${API_BASE_URL}/api/product/delete/${product.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
         });
+        Swal.fire({ icon: "success", title: "លុបបានជោគជ័យ", timer: 1500, showConfirmButton: false });
+        if (onSubmit) onSubmit();
+        closeCanvas();
+      } catch (error) {
+        Swal.fire({ icon: "error", title: "លុបបរាជ័យ" });
       }
     }
   };
@@ -164,52 +144,61 @@ const ProductOffcanvas = ({ product, onClose, onSubmit }) => {
         <div className="p-6 h-full overflow-y-auto">
           <div className="flex justify-between items-center mb-6 border-b pb-4">
             <h2 className="text-xl font-bold">ព័ត៌មានផលិតផល</h2>
-            <button onClick={closeCanvas} className="text-gray-400 hover:text-black transition-colors">✕</button>
+            <button onClick={closeCanvas} className="text-gray-400 hover:text-black">✕</button>
           </div>
 
           <div className="space-y-4">
+            {/* Image Section */}
             <div>
               <label className="block text-sm font-medium mb-1">រូបភាព</label>
-              <img src={previewImage || 'https://via.placeholder.com/150'} className="w-full  object-cover rounded-lg border mb-2 shadow-sm" />
+              <div className="w-full h-48 overflow-hidden rounded-lg border bg-gray-50 mb-2">
+                <img 
+                  src={previewImage} 
+                  className="w-full h-full object-contain" 
+                  alt="Preview"
+                  onError={(e) => { e.target.src = 'https://via.placeholder.com/150'; }}
+                />
+              </div>
               <input type="file" name="image_url" onChange={handleChange} className="w-full text-sm border p-2 rounded bg-gray-50" />
             </div>
 
+            {/* Inputs */}
             <div>
-              <label className="block text-sm font-medium mb-1">ឈ្មោះផលិតផល</label>
-              <input name="name" value={formData.name || ''} onChange={handleChange} className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" />
+               <label className="block text-sm font-medium mb-1">ឈ្មោះផលិតផល</label>
+               <input name="name" value={formData.name || ''} onChange={handleChange} className="w-full border p-2 rounded outline-none" />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">ប្រភេទ (Category)</label>
-              <select
-                name="category_id"
-                value={formData.category_id || ''}
-                onChange={handleChange}
-                className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none"
-              >
-                <option value="">ជ្រើសរើសប្រភេទ</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
+               <label className="block text-sm font-medium mb-1">ប្រភេទ (Category)</label>
+               <select name="category_id" value={formData.category_id || ''} onChange={handleChange} className="w-full border p-2 rounded">
+                 <option value="">ជ្រើសរើសប្រភេទ</option>
+                 {categories.map((cat) => (
+                   <option key={cat.id} value={cat.id}>{cat.name}</option>
+                 ))}
+               </select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">តម្លៃ ($)</label>
-                <input name="price" type="number" value={formData.price || ''} onChange={handleChange} className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">ក្នុងស្តុក</label>
-                <input name="stock_qty" type="number" value={formData.stock_qty || ''} onChange={handleChange} className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" />
-              </div>
+               <div>
+                 <label className="block text-sm font-medium mb-1">តម្លៃ ($)</label>
+                 <input name="price" type="number" value={formData.price || ''} onChange={handleChange} className="w-full border p-2 rounded" />
+               </div>
+               <div>
+                 <label className="block text-sm font-medium mb-1">ក្នុងស្តុក</label>
+                 <input name="stock_qty" type="number" value={formData.stock_qty || ''} onChange={handleChange} className="w-full border p-2 rounded" />
+               </div>
             </div>
 
+            {/* Action Buttons */}
             <div className="flex flex-col gap-2 pt-6">
-              <button onClick={handleUpdate} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl transition shadow-lg shadow-blue-200">
-                រក្សាទុកការផ្លាស់ប្តូរ
+              <button 
+                onClick={handleUpdate} 
+                disabled={isSubmitting}
+                className={`w-full text-white font-bold py-2.5 rounded-xl transition-all ${isSubmitting ? "bg-blue-300" : "bg-blue-600 hover:bg-blue-700"}`}
+              >
+                {isSubmitting ? "កំពុងរក្សាទុក..." : "រក្សាទុកការផ្លាស់ប្តូរ"}
               </button>
-              <button onClick={handleDelete} className="w-full bg-white border border-red-200 text-red-600 hover:bg-red-50 font-bold py-2.5 rounded-xl transition">
+              <button onClick={handleDelete} className="w-full bg-white border border-red-200 text-red-600 font-bold py-2.5 rounded-xl hover:bg-red-50">
                 លុបផលិតផលនេះ
               </button>
             </div>

@@ -2,30 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 
 function InventoryPage() {
-  const { userId } = useParams(); // ចាប់យក ID ពី URL
+  const { userId } = useParams();
   const [data, setData] = useState(null);
-  const IP = "192.168.110.13"; 
+  
+  // កំណត់ IP របស់ម៉ាស៊ីនអ្នក (Host IP) ដែលបានមកពី ipconfig
+  const BASE_URL = "http://192.168.0.152:8000"; 
 
   useEffect(() => {
-  const IP = "192.168.110.13";
-  
-  fetch(`http://${IP}:8000/api/user-inventory/${userId}`)
-    .then(res => {
-      console.log("Response Status:", res.status); // បើឃើញ 200 គឺជោគជ័យ
-      return res.json();
-    })
-    .then(result => {
-      console.log("Result received:", result);
-      // ត្រូវប្រាកដថា result មាន property ឈ្មោះ products
-      if(result.success) {
-        setData(result);
-      }
-    })
-    .catch(err => {
-      console.error("Fetch Error:", err);
-      alert("Connect ទៅ API មិនបានទេ! សូមឆែក IP និង Firewall");
-    });
-}, [userId]);
+    fetch(`${BASE_URL}/api/user-inventory/1`)
+      .then(res => {
+        if (!res.ok) throw new Error("Network response was not ok");
+        return res.json();
+      })
+      .then(result => {
+        if(result.success) {
+          setData(result);
+        }
+      })
+      .catch(err => {
+        console.error("Fetch Error:", err);
+        // បង្ហាញ Error ឱ្យចំបញ្ហា
+      });
+  }, [userId]);
 
   if (!data) return <div className="p-10 text-center text-blue-500">កំពុងស្វែងរកផលិតផល...</div>;
 
@@ -36,7 +34,7 @@ function InventoryPage() {
       </div>
       
       <div className="p-4 space-y-4">
-        {data.products.map(product => (
+        {data.products?.map(product => (
           <div key={product.id} className="bg-white p-4 rounded-2xl shadow-sm flex items-center border border-gray-100">
             <img 
                 src={product.image_url} 
