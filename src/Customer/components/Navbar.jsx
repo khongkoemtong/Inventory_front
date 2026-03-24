@@ -1,8 +1,10 @@
 // Navbar.jsx
 import React, { useState, useEffect } from 'react';
-import { Sparkles, ShoppingBag } from 'lucide-react';
+import { Sparkles, ShoppingBag, Home, Package } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
-function Navbar({ onCartClick, cartCount }) {
+function Navbar({ onCartClick, cartCount,isCartOpen,     
+  setIsCartOpen }) {
     const [scrolled, setScrolled] = useState(false);
 
     useEffect(() => {
@@ -20,14 +22,42 @@ function Navbar({ onCartClick, cartCount }) {
                     <span className={`text-2xl font-black uppercase ${scrolled ? 'text-gray-900' : 'text-white'}`}>Medusa</span>
                 </div>
 
-                {/* Cart Trigger */}
+                {/* Home and Cart Triggers */}
                 <div className="flex items-center gap-4">
+                    <Link
+                        to="/"
+                        className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${
+                            scrolled 
+                                ? 'bg-gray-100 text-gray-900 hover:bg-emerald-100 hover:text-emerald-700' 
+                                : 'bg-white/10 text-white hover:bg-white/20'
+                        }`}
+                    >
+                        <Home size={20} />
+                    </Link>
+                    <Link
+                        to="/products"
+                        className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${
+                            scrolled 
+                                ? 'bg-gray-100 text-gray-900 hover:bg-emerald-100 hover:text-emerald-700' 
+                                : 'bg-white/10 text-white hover:bg-white/20'
+                        }`}
+                    >
+                        <Package size={20} />
+                    </Link>
                     <button
                         onClick={onCartClick}
-                        className="..."
+                        className={`relative w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${
+                            scrolled 
+                                ? 'bg-gray-100 text-gray-900 hover:bg-emerald-100 hover:text-emerald-700' 
+                                : 'bg-white/10 text-white hover:bg-white/20'
+                        }`}
                     >
                         <ShoppingBag size={20} />
-                        {cartCount > 0 && <span>{cartCount}</span>}
+                        {cartCount > 0 && (
+                            <span className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 text-white text-[10px] font-black rounded-full flex items-center justify-center">
+                                {cartCount}
+                            </span>
+                        )}
                     </button>
                 </div>
             </nav>

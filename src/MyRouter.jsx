@@ -1,5 +1,5 @@
-import React, { useState } from 'react'; // ១. បន្ថែម useState ត្រង់នេះ
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import React, { useState } from 'react'; // បន្ថែម useState ត្រង់នេះ
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 
 // Admin Layout
 import Dashboard from './Admin/Dashboard';
@@ -21,6 +21,7 @@ import Register from './Admin/form/Register';
 // Customer
 import Home from './Customer/Home';
 import Profile from './Customer/Profile';
+import ProductsByCategory from './Customer/ProductsByCategory';
 import AdminRoute from './Admin/AdminRoute';
 // Other
 import NotFound from './Admin/NotFound';
@@ -33,7 +34,7 @@ function MyRouter() {
 
   // គណនាចំនួន Item សរុបសម្រាប់បង្ហាញលើ Navbar
   const cartCount = cartItems.reduce((sum, i) => sum + i.qty, 0);
-  // ២. បង្កើត State សម្រាប់ Guest Info និង Cart នៅទីនេះ
+  // បង្កើត State សម្រាប់ Guest Info និង Cart នៅទីនេះ
   const [guestInfo, setGuestInfo] = useState({
     customer_name: '',
     phone: '',
@@ -45,10 +46,33 @@ function MyRouter() {
 
   return (
     <BrowserRouter>
-      <Navbar
-        onCartClick={() => setIsCartOpen(true)}
+      <AppRoutes 
+        cartItems={cartItems} 
+        setCartItems={setCartItems}
+        isCartOpen={isCartOpen}
+        setIsCartOpen={setIsCartOpen}
         cartCount={cartCount}
+        guestInfo={guestInfo}
+        setGuestInfo={setGuestInfo}
+        total={total}
       />
+    </BrowserRouter>
+  );
+}
+
+// Inner component that can use useLocation (inside BrowserRouter)
+function AppRoutes({ cartItems, setCartItems, isCartOpen, setIsCartOpen, cartCount, guestInfo, setGuestInfo, total }) {
+  const location = useLocation();
+  const showNavbar = !location.pathname.startsWith('/dashboard');
+
+  return (
+    <>
+      {showNavbar && (
+        <Navbar
+          onCartClick={() => setIsCartOpen(true)}
+          cartCount={cartCount}
+        />
+      )}
       <Routes>
 
         <Route
@@ -64,6 +88,14 @@ function MyRouter() {
         />        <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/profile/:id" element={<Profile />} />
+        <Route path="/products" element={
+         <ProductsByCategory 
+    cartItems={cartItems} 
+    setCartItems={setCartItems} 
+    isCartOpen={isCartOpen}      // បោះ State ទៅឱ្យ Component
+    setIsCartOpen={setIsCartOpen} // បោះ Function ទៅឱ្យ Component
+  />
+        } />
 
         <Route path="/checkout" element={
           <CheckoutForm
@@ -101,7 +133,7 @@ function MyRouter() {
         {/* 404 */}
         <Route path="*" element={<NotFound />} />
       </Routes>
-    </BrowserRouter>
+    </>
   );
 }
 

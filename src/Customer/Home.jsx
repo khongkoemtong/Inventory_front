@@ -5,11 +5,21 @@ import {
   ShieldCheck, Truck, Sparkles, ChevronRight, Plus, Minus, Trash2, CheckCircle
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import Navbar from './components/Navbar';
+import HomeOffcanvas from './components/HomeOffcanvas';
 
 const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
 const CartOffcanvas = ({ isOpen, onClose, cartItems, onUpdateQty, onRemove, onCheckout, checkoutLoading, checkoutSuccess }) => {
+  const navigate = useNavigate();
   const total = cartItems.reduce((sum, item) => sum + parseFloat(item.price) * item.qty, 0);
+
+  const handleCheckoutClick = () => {
+    onClose();
+    // Store cart items in localStorage for checkout page
+    localStorage.setItem('checkout_cart', JSON.stringify(cartItems));
+    navigate('/checkout');
+  };
 
   return (
     <>
@@ -91,7 +101,7 @@ const CartOffcanvas = ({ isOpen, onClose, cartItems, onUpdateQty, onRemove, onCh
               </div>
             ) : (
               <button
-                onClick={onCheckout}
+                onClick={handleCheckoutClick}
                 disabled={checkoutLoading}
                 className="w-full py-5 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black text-[11px] uppercase tracking-widest rounded-2xl flex items-center justify-center gap-3 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-emerald-500/20"
               >
@@ -122,6 +132,7 @@ const Home = () => {
 
   // UI States
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isHomeOpen, setIsHomeOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState('All');
   const [scrolled, setScrolled] = useState(false);
   const [statsOffset, setStatsOffset] = useState(0);
@@ -272,7 +283,24 @@ const Home = () => {
         checkoutSuccess={checkoutSuccess}
       />
 
-     
+      {/* HOME OFFCANVAS */}
+      <HomeOffcanvas
+        isOpen={isHomeOpen}
+        onClose={() => setIsHomeOpen(false)}
+        products={products}
+        categories={categories}
+        activeCategory={activeCategory}
+        onCategoryChange={setActiveCategory}
+        onAddToCart={handleAddToCart}
+        addingId={addingId}
+      />
+
+      {/* NAVBAR */}
+      <Navbar
+        onCartClick={() => setIsCartOpen(true)}
+        onHomeClick={() => setIsHomeOpen(true)}
+        cartCount={cartCount}
+      />
 
       {/* HERO */}
       <section className="relative bg-emerald-950 pt-56 pb-32 overflow-hidden min-h-screen flex items-center text-white">
